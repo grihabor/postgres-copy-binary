@@ -1,6 +1,6 @@
 # postgres-binary-format
 
-The package provides a parser for postgres `COPY FROM WITH BINARY` format
+Provides a parser from postgres `COPY FROM WITH BINARY` format into pyarrow / pandas / numpy
 
 ## Links
 
