@@ -1,8 +1,9 @@
 use bytes::Bytes;
 use futures::stream::{self};
 use postgres::binary_copy::BinaryCopyOutIter;
+use postgres::error::Error;
 use postgres::fallible_iterator::FallibleIterator;
-use postgres_types::Type;
+use postgres_types::{Kind, Type};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -12,14 +13,21 @@ fn decode(buffer: &[u8]) -> PyResult<Vec<i32>> {
     let input_stream = stream::once(async { Ok(Bytes::from(b)) });
     let mut it = BinaryCopyOutIter::new(input_stream, &[Type::INT4]);
     let mut v = vec![];
-    while let Some(row) = it
-        .next()
-        .map_err(|e| PyValueError::new_err(e.to_string()))?
-    {
-        let int: i32 = row.get(0);
-        v.push(int);
+    loop {
+        match it.next() {
+            Ok(row) => {
+                let int: i32 = row.expect("row parsed").get(0);
+                v.push(int);
+            }
+            Err(e) => {
+                return if e.is_closed() {
+                    Ok(v)
+                } else {
+                    Err(PyValueError::new_err(e.to_string()))
+                }
+            }
+        }
     }
-    Ok(v)
 }
 
 /// Formats the sum of two numbers as string.
