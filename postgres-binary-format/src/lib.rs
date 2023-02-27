@@ -1,18 +1,23 @@
+use std::pin::Pin;
 use bytes::Bytes;
-use futures::stream::{self};
-use postgres::binary_copy::BinaryCopyOutIter;
-use postgres::error::Error;
+use futures::stream::Stream;
 use postgres::fallible_iterator::FallibleIterator;
-use postgres_types::{Kind, Type};
+use postgres_types::Type;
+use postgres::{CopyOutReader, Error};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use postgres::binary_copy::BinaryCopyOutIter;
+use tokio_postgres::binary_copy::BinaryCopyOutStream;
+use tokio_postgres::CopyOutStream;
+
 
 #[pyfunction]
 fn decode(buffer: &[u8]) -> PyResult<Vec<i32>> {
     let b = buffer.to_owned();
     let input_stream = stream::once(async { Ok(Bytes::from(b)) });
-    let mut it = BinaryCopyOutIter::new(input_stream, &[Type::INT4]);
+    let mut it = BinaryCopyOutIter::from_stream(input_stream, &[Type::INT4]);
     let mut v = vec![];
+
     loop {
         match it.next() {
             Ok(row) => {
