@@ -1,6 +1,6 @@
-# postgres-binary-format
+# postgres-copy-binary
 
-Provides a parser from postgres `COPY FROM WITH BINARY` format into pyarrow / pandas / numpy
+Provides a decoder for postgres `COPY FROM WITH BINARY` format that spits out pyarrow / pandas / numpy arrays
 
 ## Links
 
