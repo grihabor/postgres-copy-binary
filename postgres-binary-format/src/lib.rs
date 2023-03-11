@@ -18,6 +18,7 @@ fn decode(buffer: &[u8]) -> PyResult<Vec<i32>> {
     loop {
         match it.next() {
             Ok(Some(row)) => {
+                println!("{:?}", row);
                 let int: i32 = row.get(0);
                 v.push(int);
             }
@@ -39,4 +40,11 @@ fn postgres_binary_format(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     m.add_function(wrap_pyfunction!(decode, m)?)?;
     Ok(())
+}
+
+#[test]
+fn test_row() {
+    let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
+    let actual = decode(buf);
+    assert_eq!(actual.unwrap(), vec![1,2,3])
 }

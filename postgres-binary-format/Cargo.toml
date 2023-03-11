@@ -13,5 +13,11 @@ bytes = "1.4.0"
 futures = "0.3.26"
 postgres = { version = "0.19.4", path = "../rust-postgres/postgres" }
 postgres-types = { version = "0.2.4", path = "../rust-postgres/postgres-types" }
-pyo3 = { version = "0.18.0", features = ["extension-module"] }
 tokio-postgres = { version = "0.7.7", path = "../rust-postgres/tokio-postgres" }
+
+[dependencies.pyo3]
+version = "0.18.1"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
