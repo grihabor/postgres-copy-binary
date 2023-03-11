@@ -979,8 +979,6 @@ dependencies = [
 name = "postgres-binary-format"
 version = "0.1.0"
 dependencies = [
- "bytes",
- "futures",
  "postgres",
  "postgres-types",
  "pyo3",

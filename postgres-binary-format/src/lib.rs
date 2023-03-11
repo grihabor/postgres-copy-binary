@@ -4,7 +4,6 @@ use postgres_types::Type;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-
 #[pyfunction]
 fn decode_all_rows(buffer: &[u8]) -> PyResult<Vec<i32>> {
     let mut it = BinaryCopyOutIter::new(buffer, &[Type::INT4]);
@@ -33,6 +32,6 @@ fn postgres_binary_format(_py: Python, m: &PyModule) -> PyResult<()> {
 #[test]
 fn test_row() {
     let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
-    let actual = decode(buf);
-    assert_eq!(actual.unwrap(), vec![1,2,3])
+    let actual = decode_all_rows(buf);
+    assert_eq!(actual.unwrap(), vec![1, 2, 3])
 }
