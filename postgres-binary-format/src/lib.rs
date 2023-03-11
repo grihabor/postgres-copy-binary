@@ -10,8 +10,10 @@ use std::pin::Pin;
 use tokio_postgres::binary_copy::BinaryCopyOutStream;
 use tokio_postgres::CopyOutStream;
 
+
+
 #[pyfunction]
-fn decode(buffer: &[u8]) -> PyResult<Vec<i32>> {
+fn decode_all_rows(buffer: &[u8]) -> PyResult<Vec<i32>> {
     let mut it = BinaryCopyOutIter::new(buffer, &[Type::INT4]);
     let mut v = vec![];
 
@@ -28,17 +30,10 @@ fn decode(buffer: &[u8]) -> PyResult<Vec<i32>> {
     }
 }
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
 /// A Python module implemented in Rust.
 #[pymodule]
 fn postgres_binary_format(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
-    m.add_function(wrap_pyfunction!(decode, m)?)?;
+    m.add_function(wrap_pyfunction!(decode_all_rows, m)?)?;
     Ok(())
 }
 
