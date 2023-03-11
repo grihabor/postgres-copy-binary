@@ -1,15 +1,8 @@
-use bytes::Bytes;
-use futures::stream::Stream;
 use postgres::binary_copy::BinaryCopyOutIter;
 use postgres::fallible_iterator::FallibleIterator;
-use postgres::{CopyOutReader, Error};
 use postgres_types::Type;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use std::pin::Pin;
-use tokio_postgres::binary_copy::BinaryCopyOutStream;
-use tokio_postgres::CopyOutStream;
-
 
 
 #[pyfunction]
