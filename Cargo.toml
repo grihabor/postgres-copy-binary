@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "postgres-binary-format",
+    "postgres-copy-binary",
     "rust-postgres/postgres",
 ]
