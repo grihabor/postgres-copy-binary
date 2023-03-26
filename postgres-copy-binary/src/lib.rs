@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use arrow2::array::{Array, MutableArray, MutablePrimitiveArray, PrimitiveArray};
 use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
@@ -56,11 +55,11 @@ static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "xml" => Type::XML,
 };
 
-fn new_array(ty: &Type) -> anyhow::Result<Box<dyn MutableArray>> {
+fn new_array(ty: &Type) -> Result<Box<dyn MutableArray>, String> {
     match *ty {
         Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
         Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
-        _ => Err(anyhow!("array for type {} is not implemented yet", ty)),
+        _ => Err(format!("array for type {} is not implemented yet", ty)),
     }
 }
 
@@ -86,8 +85,8 @@ fn decode_buffer(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>
     let mut columns = types_
         .iter()
         .map(|t| new_array(&t))
-        .collect::<anyhow::Result<Vec<_>>>()
-        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+        .collect::<Result<Vec<_>, String>>()
+        .map_err(|err| PyValueError::new_err(err))?;
 
     loop {
         match rows.next() {
@@ -138,12 +137,10 @@ fn push_row_value(
                 .downcast_mut::<MutablePrimitiveArray<i32>>()
                 .unwrap()
                 .push(v);
-            println!("column {:?}", array);
             Ok(())
         }
         PhysicalType::Primitive(PrimitiveType::Float32) => {
             let v: Option<f32> = row.get(i);
-            println!("try downcast f32 {:?}", array);
             array
                 .as_mut_any()
                 .downcast_mut::<MutablePrimitiveArray<f32>>()
