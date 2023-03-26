@@ -1,17 +1,18 @@
 [package]
-name = "postgres-binary-format"
+name = "postgres-copy-binary"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "postgres_binary_format"
+name = "postgres_copy_binary"
 crate-type = ["cdylib"]
 
 [dependencies]
 postgres = { version = "0.19.4", path = "../rust-postgres/postgres" }
 postgres-types = { version = "0.2.4", path = "../rust-postgres/postgres-types" }
-tokio-postgres = { version = "0.7.7", path = "../rust-postgres/tokio-postgres" }
+arrow2 = "0.16.0"
+phf = { version = "0.11.1", features = ["macros"] }
 
 [dependencies.pyo3]
 version = "0.18.1"
