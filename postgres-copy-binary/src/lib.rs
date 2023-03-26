@@ -4,8 +4,7 @@ use arrow2::datatypes::PhysicalType;
 use arrow2::ffi;
 use arrow2::types::PrimitiveType;
 use phf::phf_map;
-use postgres::binary_copy::{BinaryCopyOutIter, BinaryCopyOutRow};
-use postgres::fallible_iterator::FallibleIterator;
+use postgres_copy_binary_rs::{BinaryCopyOutIter, BinaryCopyOutRow};
 use postgres_types::Type;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
@@ -90,13 +89,13 @@ fn decode_buffer(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>
 
     loop {
         match rows.next() {
-            Ok(Some(row)) => {
+            Some(Ok(row)) => {
                 push_row_values(&mut columns, &row)?;
             }
-            Ok(None) => {
+            None => {
                 break;
             }
-            Err(e) => return Err(PyValueError::new_err(e.to_string())),
+            Some(Err(e)) => return Err(PyValueError::new_err(e.to_string())),
         }
     }
     Ok(columns

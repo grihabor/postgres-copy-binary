@@ -2,5 +2,5 @@
 
 members = [
     "postgres-copy-binary",
-    "rust-postgres/postgres",
+    "postgres-copy-binary-rs",
 ]
