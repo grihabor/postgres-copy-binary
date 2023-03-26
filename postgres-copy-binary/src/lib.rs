@@ -1,14 +1,16 @@
 use anyhow::anyhow;
-use arrow2::array::{Array, MutableArray, MutablePrimitiveArray};
-use postgres::binary_copy::BinaryCopyOutIter;
+use arrow2::array::{Array, MutableArray, MutablePrimitiveArray, PrimitiveArray};
+use arrow2::datatypes::PhysicalType;
+use postgres::binary_copy::{BinaryCopyOutIter, BinaryCopyOutRow};
 use postgres::fallible_iterator::FallibleIterator;
 use postgres_types::Type;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
-use arrow2::datatypes::PhysicalType;
-// use arrow2::ffi::export_array_to_c;
+use arrow2::datatypes::Field;
+use arrow2::ffi;
 use arrow2::types::PrimitiveType;
 use phf::phf_map;
+use pyo3::ffi::Py_uintptr_t;
 
 static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "bigint" => Type::INT8,
@@ -54,16 +56,15 @@ static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "xml" => Type::XML,
 };
 
-fn new_array(ty: &Type) -> anyhow::Result<Box<dyn Array>> {
+fn new_array(ty: &Type) -> anyhow::Result<Box<dyn MutableArray>> {
     match *ty {
-        Type::INT4 => Ok(MutablePrimitiveArray::<i32>::new().as_box()),
-        Type::FLOAT4 => Ok(MutablePrimitiveArray::<f32>::new().as_box()),
+        Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
+        Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
         _ => Err(anyhow!("array for type {} is not implemented yet", ty)),
     }
 }
 
-#[pyfunction]
-fn decode_all_rows(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<i32>> {
+fn buffer_to_arrays(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>>> {
     let mut types_ = vec![];
     for name in types {
         let type_ = match TYPE_MAPPING.get(name) {
@@ -91,21 +92,7 @@ fn decode_all_rows(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<i32>> {
     loop {
         match rows.next() {
             Ok(Some(row)) => {
-                for (i, column) in columns.iter_mut().enumerate() {
-                    match column.data_type().to_physical_type() {
-                        PhysicalType::Primitive(PrimitiveType::Int32) => {
-                            let v: Option<i32> = row.get(i);
-                            println!("try downcast i32 {:?}", column);
-                            column.as_any_mut().downcast_mut::<MutablePrimitiveArray<i32>>().unwrap().push(v);
-                        }
-                        PhysicalType::Primitive(PrimitiveType::Float32) => {
-                            let v: Option<f32> = row.get(i);
-                            println!("try downcast f32 {:?}", column);
-                            column.as_any_mut().downcast_mut::<MutablePrimitiveArray<f32>>().unwrap().push(v);
-                        }
-                        _ => return Err(PyRuntimeError::new_err("array physical type is not handled"))
-                    }
-                }
+                columns = push_row_values(columns, row)?;
             }
             Ok(None) => {
                 break;
@@ -113,17 +100,87 @@ fn decode_all_rows(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<i32>> {
             Err(e) => return Err(PyValueError::new_err(e.to_string())),
         }
     }
-    for (i, column) in columns.into_iter().enumerate() {
-        println!("column {}: {:?}", i, column);
+    Ok(columns
+        .into_iter()
+        .map(|mut array| array.as_box())
+        .collect())
+}
+
+#[pyfunction]
+fn decode_all_rows(py: Python, buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<PyObject>> {
+    buffer_to_arrays(buffer, types)?
+        .into_iter()
+        .map(|array| to_py_array(array, py))
+        .collect()
+}
+
+fn push_row_values(
+    columns: Vec<Box<dyn MutableArray>>,
+    row: BinaryCopyOutRow,
+) -> PyResult<Vec<Box<dyn MutableArray>>> {
+    columns
+        .into_iter()
+        .enumerate()
+        .map(|(i, array)| push_row_value(array, &row, i))
+        .collect()
+}
+
+fn push_row_value(
+    mut array: Box<dyn MutableArray>,
+    row: &BinaryCopyOutRow,
+    i: usize,
+) -> PyResult<Box<dyn MutableArray>> {
+    match array.data_type().to_physical_type() {
+        PhysicalType::Primitive(PrimitiveType::Int32) => {
+            let v: Option<i32> = row.get(i);
+            array
+                .as_mut_any()
+                .downcast_mut::<MutablePrimitiveArray<i32>>()
+                .unwrap()
+                .push(v);
+            println!("column {:?}", array);
+            Ok(array)
+        }
+        PhysicalType::Primitive(PrimitiveType::Float32) => {
+            let v: Option<f32> = row.get(i);
+            println!("try downcast f32 {:?}", array);
+            array
+                .as_mut_any()
+                .downcast_mut::<MutablePrimitiveArray<f32>>()
+                .unwrap()
+                .push(v);
+            Ok(array)
+        }
+        _ => Err(PyRuntimeError::new_err(
+            "array physical type is not handled",
+        )),
     }
-    // let _ = export_array_to_c(first_column);
-    // Err(PyNotImplementedError::new_err(""))
-    Ok(vec![])
+}
+
+fn to_py_array(array: Box<dyn Array>, py: Python) -> PyResult<PyObject> {
+    let schema = Box::new(ffi::export_field_to_c(&Field::new(
+        "",
+        array.data_type().clone(),
+        true,
+    )));
+    let array = Box::new(ffi::export_array_to_c(array));
+
+    let schema_ptr: *const arrow2::ffi::ArrowSchema = &*schema;
+    let array_ptr: *const arrow2::ffi::ArrowArray = &*array;
+
+    let pa = py.import("pyarrow")?;
+
+    let array = pa.getattr("Array")?.call_method1(
+        "_import_from_c",
+        (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
+    )?;
+
+    Ok(array.to_object(py))
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn postgres_binary_format(_py: Python, m: &PyModule) -> PyResult<()> {
+fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(decode_all_rows, m)?)?;
     Ok(())
 }
@@ -131,6 +188,9 @@ fn postgres_binary_format(_py: Python, m: &PyModule) -> PyResult<()> {
 #[test]
 fn test_row_i32() {
     let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
-    let actual = decode_all_rows(buf).expect("no exception");
-    assert_eq!(actual, vec![1, 2, 3])
+    let actual = buffer_to_arrays(buf, vec!["integer"]).expect("no exception");
+    assert_eq!(
+        actual,
+        vec![PrimitiveArray::from_vec(vec![1, 2, 3]).boxed()]
+    )
 }

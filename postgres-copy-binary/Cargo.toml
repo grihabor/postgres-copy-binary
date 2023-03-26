@@ -1,11 +1,11 @@
 [package]
-name = "postgres-binary-format"
+name = "postgres-copy-binary"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "postgres_binary_format"
+name = "postgres_copy_binary"
 crate-type = ["cdylib"]
 
 [dependencies]
