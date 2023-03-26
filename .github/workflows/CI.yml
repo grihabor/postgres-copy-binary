@@ -30,7 +30,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
-          name: wheels
+          name: wheels/${GITHUB_REF##*/}
           path: dist
 
   windows:
@@ -54,7 +54,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
-          name: wheels
+          name: wheels/${GITHUB_REF##*/}
           path: dist
 
   macos:
@@ -77,7 +77,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
-          name: wheels
+          name: wheels/${GITHUB_REF##*/}
           path: dist
 
   release:
@@ -88,7 +88,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: wheels
+          name: wheels/${GITHUB_REF##*/}
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
