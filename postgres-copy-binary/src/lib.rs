@@ -1,16 +1,16 @@
 use anyhow::anyhow;
 use arrow2::array::{Array, MutableArray, MutablePrimitiveArray, PrimitiveArray};
+use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
+use arrow2::ffi;
+use arrow2::types::PrimitiveType;
+use phf::phf_map;
 use postgres::binary_copy::{BinaryCopyOutIter, BinaryCopyOutRow};
 use postgres::fallible_iterator::FallibleIterator;
 use postgres_types::Type;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
-use pyo3::prelude::*;
-use arrow2::datatypes::Field;
-use arrow2::ffi;
-use arrow2::types::PrimitiveType;
-use phf::phf_map;
 use pyo3::ffi::Py_uintptr_t;
+use pyo3::prelude::*;
 
 static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "bigint" => Type::INT8,
@@ -64,7 +64,7 @@ fn new_array(ty: &Type) -> anyhow::Result<Box<dyn MutableArray>> {
     }
 }
 
-fn buffer_to_arrays(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>>> {
+fn decode_buffer(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>>> {
     let mut types_ = vec![];
     for name in types {
         let type_ = match TYPE_MAPPING.get(name) {
@@ -92,7 +92,7 @@ fn buffer_to_arrays(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Arr
     loop {
         match rows.next() {
             Ok(Some(row)) => {
-                columns = push_row_values(columns, row)?;
+                push_row_values(&mut columns, &row)?;
             }
             Ok(None) => {
                 break;
@@ -107,29 +107,29 @@ fn buffer_to_arrays(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Arr
 }
 
 #[pyfunction]
-fn decode_all_rows(py: Python, buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<PyObject>> {
-    buffer_to_arrays(buffer, types)?
+#[pyo3(name = "decode_buffer")]
+fn py_decode_buffer(py: Python, buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<PyObject>> {
+    decode_buffer(buffer, types)?
         .into_iter()
         .map(|array| to_py_array(array, py))
         .collect()
 }
 
 fn push_row_values(
-    columns: Vec<Box<dyn MutableArray>>,
-    row: BinaryCopyOutRow,
-) -> PyResult<Vec<Box<dyn MutableArray>>> {
-    columns
-        .into_iter()
-        .enumerate()
-        .map(|(i, array)| push_row_value(array, &row, i))
-        .collect()
+    columns: &mut Vec<Box<dyn MutableArray>>,
+    row: &BinaryCopyOutRow,
+) -> PyResult<()> {
+    for (i, array) in columns.iter_mut().enumerate() {
+        push_row_value(array, &row, i)?;
+    }
+    Ok(())
 }
 
 fn push_row_value(
-    mut array: Box<dyn MutableArray>,
+    array: &mut Box<dyn MutableArray>,
     row: &BinaryCopyOutRow,
     i: usize,
-) -> PyResult<Box<dyn MutableArray>> {
+) -> PyResult<()> {
     match array.data_type().to_physical_type() {
         PhysicalType::Primitive(PrimitiveType::Int32) => {
             let v: Option<i32> = row.get(i);
@@ -139,7 +139,7 @@ fn push_row_value(
                 .unwrap()
                 .push(v);
             println!("column {:?}", array);
-            Ok(array)
+            Ok(())
         }
         PhysicalType::Primitive(PrimitiveType::Float32) => {
             let v: Option<f32> = row.get(i);
@@ -149,7 +149,7 @@ fn push_row_value(
                 .downcast_mut::<MutablePrimitiveArray<f32>>()
                 .unwrap()
                 .push(v);
-            Ok(array)
+            Ok(())
         }
         _ => Err(PyRuntimeError::new_err(
             "array physical type is not handled",
@@ -181,14 +181,14 @@ fn to_py_array(array: Box<dyn Array>, py: Python) -> PyResult<PyObject> {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(decode_all_rows, m)?)?;
+    m.add_function(wrap_pyfunction!(py_decode_buffer, m)?)?;
     Ok(())
 }
 
 #[test]
 fn test_row_i32() {
     let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
-    let actual = buffer_to_arrays(buf, vec!["integer"]).expect("no exception");
+    let actual = decode_buffer(buf, vec!["integer"]).expect("no exception");
     assert_eq!(
         actual,
         vec![PrimitiveArray::from_vec(vec![1, 2, 3]).boxed()]
