@@ -1,3 +1,0 @@
-[submodule "rust-postgres"]
-	path = rust-postgres
-	url = git@github.com:grihabor/rust-postgres.git
