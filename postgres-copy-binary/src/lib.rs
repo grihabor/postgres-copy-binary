@@ -1,4 +1,4 @@
-use arrow2::array::{Array, MutableArray, MutablePrimitiveArray, PrimitiveArray};
+use arrow2::array::{Array, MutableArray, MutablePrimitiveArray};
 use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
 use arrow2::ffi;
@@ -181,12 +181,18 @@ fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[test]
-fn test_row_i32() {
-    let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
-    let actual = decode_buffer(buf, vec!["integer"]).expect("no exception");
-    assert_eq!(
-        actual,
-        vec![PrimitiveArray::from_vec(vec![1, 2, 3]).boxed()]
-    )
+#[cfg(test)]
+mod tests {
+    use arrow2::array::PrimitiveArray;
+    use crate::decode_buffer;
+
+    #[test]
+    fn test_row_i32() {
+        let buf: &[u8] = b"PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x00\x00\x00\x01\x00\x01\x00\x00\x00\x04\x00\x00\x00\x02\x00\x01\x00\x00\x00\x04\x00\x00\x00\x03\xff\xff";
+        let actual = decode_buffer(buf, vec!["integer"]).expect("no exception");
+        assert_eq!(
+            actual,
+            vec![PrimitiveArray::from_vec(vec![1, 2, 3]).boxed()]
+        )
+    }
 }
