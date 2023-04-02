@@ -77,7 +77,7 @@ fn new_array(ty: Type) -> Result<Box<dyn MutableArray>, String> {
     match ty {
         Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
         Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
-        _ => Err(format!("array for type {:?} is not implemented yet", ty)),
+        Type::FLOAT8 => Ok(Box::new(MutablePrimitiveArray::<f64>::new())),
     }
 }
 
@@ -142,30 +142,27 @@ fn push_row_values(
     Ok(())
 }
 
+macro_rules! push_value {
+    ($array:ident, $row:ident, $i:ident, $ty:ident) => {{
+        let v: Option<$ty> = $row.get($i);
+        $array
+            .as_mut_any()
+            .downcast_mut::<MutablePrimitiveArray<$ty>>()
+            .unwrap()
+            .push(v);
+        Ok(())
+    }};
+}
+
 fn push_row_value(
     array: &mut Box<dyn MutableArray>,
     row: &BinaryCopyOutRow,
     i: usize,
 ) -> PyResult<()> {
     match array.data_type().to_physical_type() {
-        PhysicalType::Primitive(PrimitiveType::Int32) => {
-            let v: Option<i32> = row.get(i);
-            array
-                .as_mut_any()
-                .downcast_mut::<MutablePrimitiveArray<i32>>()
-                .unwrap()
-                .push(v);
-            Ok(())
-        }
-        PhysicalType::Primitive(PrimitiveType::Float32) => {
-            let v: Option<f32> = row.get(i);
-            array
-                .as_mut_any()
-                .downcast_mut::<MutablePrimitiveArray<f32>>()
-                .unwrap()
-                .push(v);
-            Ok(())
-        }
+        PhysicalType::Primitive(PrimitiveType::Float64) => push_value!(array, row i, f64),
+        PhysicalType::Primitive(PrimitiveType::Int32) => push_value!(array, row, i, i32),
+        PhysicalType::Primitive(PrimitiveType::Float32) => push_value!(array, row, i, f32),
         _ => Err(PyRuntimeError::new_err(
             "array physical type is not handled",
         )),
