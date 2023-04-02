@@ -1,4 +1,4 @@
-use arrow2::array::{Array, MutableArray, MutablePrimitiveArray};
+use arrow2::array::{Array, MutableArray, MutablePrimitiveArray, MutableUtf8Array};
 use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
 use arrow2::ffi;
@@ -8,6 +8,7 @@ use postgres_types::Type as PGType;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
+use std::fmt::format;
 use std::str::FromStr;
 use strum::VariantNames;
 use strum_macros::{EnumString, EnumVariantNames};
@@ -22,8 +23,9 @@ enum Type {
     // "boolean" => Type::BOOL,
     // "box" => Type::BOX,
     // "bytea" => Type::BYTEA,
-    // "character" => Type::VARCHAR,
-    // "character varying" => Type::VARCHAR,
+    #[strum(serialize = "character varying", serialize = "character")]
+    VARCHAR,
+
     // "cidr" => Type::CIDR,
     // "circle" => Type::CIRCLE,
     // "date" => Type::DATE,
@@ -66,6 +68,7 @@ enum Type {
 impl Into<PGType> for &Type {
     fn into(self) -> PGType {
         match *self {
+            Type::VARCHAR => PGType::VARCHAR,
             Type::FLOAT8 => PGType::FLOAT8,
             Type::INT4 => PGType::INT4,
             Type::FLOAT4 => PGType::FLOAT4,
@@ -75,6 +78,7 @@ impl Into<PGType> for &Type {
 
 fn new_array(ty: Type) -> Result<Box<dyn MutableArray>, String> {
     match ty {
+        Type::VARCHAR => Ok(Box::new(MutableUtf8Array::<i32>::new())),
         Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
         Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
         Type::FLOAT8 => Ok(Box::new(MutablePrimitiveArray::<f64>::new())),
@@ -143,11 +147,11 @@ fn push_row_values(
 }
 
 macro_rules! push_value {
-    ($array:ident, $row:ident, $i:ident, $ty:ident) => {{
-        let v: Option<$ty> = $row.get($i);
+    ($array:ident, $row:ident, $i:ident, $value_type:ty, $array_type:ty) => {{
+        let v: Option<$value_type> = $row.get($i);
         $array
             .as_mut_any()
-            .downcast_mut::<MutablePrimitiveArray<$ty>>()
+            .downcast_mut::<$array_type>()
             .unwrap()
             .push(v);
         Ok(())
@@ -160,12 +164,20 @@ fn push_row_value(
     i: usize,
 ) -> PyResult<()> {
     match array.data_type().to_physical_type() {
-        PhysicalType::Primitive(PrimitiveType::Float64) => push_value!(array, row, i, f64),
-        PhysicalType::Primitive(PrimitiveType::Int32) => push_value!(array, row, i, i32),
-        PhysicalType::Primitive(PrimitiveType::Float32) => push_value!(array, row, i, f32),
-        _ => Err(PyRuntimeError::new_err(
-            "array physical type is not handled",
-        )),
+        PhysicalType::Utf8 => push_value!(array, row, i, &str, MutableUtf8Array<i32>),
+        PhysicalType::Primitive(PrimitiveType::Float64) => {
+            push_value!(array, row, i, f64, MutablePrimitiveArray<f64>)
+        }
+        PhysicalType::Primitive(PrimitiveType::Int32) => {
+            push_value!(array, row, i, i32, MutablePrimitiveArray<i32>)
+        }
+        PhysicalType::Primitive(PrimitiveType::Float32) => {
+            push_value!(array, row, i, f32, MutablePrimitiveArray<f32>)
+        }
+        _ => Err(PyRuntimeError::new_err(format!(
+            "array physical type is not handled: {:?}",
+            array.data_type().to_physical_type()
+        ))),
     }
 }
 
@@ -199,7 +211,7 @@ fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{decode_buffer};
+    use crate::decode_buffer;
     use arrow2::array::PrimitiveArray;
 
     #[test]
