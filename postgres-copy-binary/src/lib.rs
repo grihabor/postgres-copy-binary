@@ -3,14 +3,18 @@ use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
 use arrow2::ffi;
 use arrow2::types::PrimitiveType;
-use phf::phf_map;
 use postgres_copy_binary_rs::{BinaryCopyOutIter, BinaryCopyOutRow};
-use postgres_types::Type;
+use postgres_types::Type as PGType;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
+use std::str::FromStr;
+use strum::VariantNames;
+use strum_macros::{EnumString, EnumVariantNames};
 
-static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
+/// Type is a supported subset of postgres_types::Type
+#[derive(Debug, EnumString, EnumVariantNames, Copy, Clone)]
+enum Type {
     // "bigint" => Type::INT8,
     // "bigserial" => Type::INT8,
     // "bit" => Type::BIT,
@@ -23,9 +27,13 @@ static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "cidr" => Type::CIDR,
     // "circle" => Type::CIRCLE,
     // "date" => Type::DATE,
-    // "double precision" => Type::FLOAT8,
+    #[strum(serialize = "double precision")]
+    FLOAT8,
+
     // "inet" => Type::INET,
-    "integer" => Type::INT4,
+    #[strum(serialize = "integer")]
+    INT4,
+
     // "interval" => Type::INTERVAL,
     // "json" => Type::JSON,
     // "jsonb" => Type::JSONB,
@@ -40,7 +48,8 @@ static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "pg_snapshot" => Type::PG_SNAPSHOT,
     // "point" => Type::POINT,
     // "polygon" => Type::POLYGON,
-    "real" => Type::FLOAT4,
+    #[strum(serialize = "real")]
+    FLOAT4,
     // "smallint" => Type::INT2,
     // "smallserial" => Type::INT2,
     // "serial" => Type::INT4,
@@ -52,38 +61,48 @@ static TYPE_MAPPING: phf::Map<&'static str, Type> = phf_map! {
     // "txid_snapshot" => Type::TXID_SNAPSHOT,
     // "uuid" => Type::UUID,
     // "xml" => Type::XML,
-};
+}
 
-fn new_array(ty: &Type) -> Result<Box<dyn MutableArray>, String> {
-    match *ty {
+impl Into<PGType> for &Type {
+    fn into(self) -> PGType {
+        match *self {
+            Type::FLOAT8 => PGType::FLOAT8,
+            Type::INT4 => PGType::INT4,
+            Type::FLOAT4 => PGType::FLOAT4,
+        }
+    }
+}
+
+fn new_array(ty: Type) -> Result<Box<dyn MutableArray>, String> {
+    match ty {
         Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
         Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
-        _ => Err(format!("array for type {} is not implemented yet", ty)),
+        Type::FLOAT8 => Ok(Box::new(MutablePrimitiveArray::<f64>::new())),
     }
 }
 
 fn decode_buffer(buffer: &[u8], types: Vec<&str>) -> PyResult<Vec<Box<dyn Array>>> {
     let mut types_ = vec![];
     for name in types {
-        let type_ = match TYPE_MAPPING.get(name) {
-            None => {
-                let keys: String = TYPE_MAPPING
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<&str>>()
-                    .join(",");
-                let msg = format!("unknown type {}, available types: {}", name, keys,);
+        let type_: Type = match Type::from_str(name) {
+            Err(_) => {
+                let msg = format!(
+                    "unknown type {}, available types: {:?}",
+                    name,
+                    Type::VARIANTS
+                );
                 return Err(PyValueError::new_err(msg));
             }
-            Some(ty) => ty.clone(),
+            Ok(ty) => ty,
         };
         types_.push(type_);
     }
 
-    let mut rows = BinaryCopyOutIter::new(buffer, types_.as_slice());
+    let pg_types: Vec<_> = types_.iter().map(|t| t.into()).collect();
+    let mut rows = BinaryCopyOutIter::new(buffer, pg_types.as_slice());
     let mut columns = types_
         .iter()
-        .map(|t| new_array(&t))
+        .map(|t| new_array(*t))
         .collect::<Result<Vec<_>, String>>()
         .map_err(|err| PyValueError::new_err(err))?;
 
@@ -123,30 +142,27 @@ fn push_row_values(
     Ok(())
 }
 
+macro_rules! push_value {
+    ($array:ident, $row:ident, $i:ident, $ty:ident) => {{
+        let v: Option<$ty> = $row.get($i);
+        $array
+            .as_mut_any()
+            .downcast_mut::<MutablePrimitiveArray<$ty>>()
+            .unwrap()
+            .push(v);
+        Ok(())
+    }};
+}
+
 fn push_row_value(
     array: &mut Box<dyn MutableArray>,
     row: &BinaryCopyOutRow,
     i: usize,
 ) -> PyResult<()> {
     match array.data_type().to_physical_type() {
-        PhysicalType::Primitive(PrimitiveType::Int32) => {
-            let v: Option<i32> = row.get(i);
-            array
-                .as_mut_any()
-                .downcast_mut::<MutablePrimitiveArray<i32>>()
-                .unwrap()
-                .push(v);
-            Ok(())
-        }
-        PhysicalType::Primitive(PrimitiveType::Float32) => {
-            let v: Option<f32> = row.get(i);
-            array
-                .as_mut_any()
-                .downcast_mut::<MutablePrimitiveArray<f32>>()
-                .unwrap()
-                .push(v);
-            Ok(())
-        }
+        PhysicalType::Primitive(PrimitiveType::Float64) => push_value!(array, row, i, f64),
+        PhysicalType::Primitive(PrimitiveType::Int32) => push_value!(array, row, i, i32),
+        PhysicalType::Primitive(PrimitiveType::Float32) => push_value!(array, row, i, f32),
         _ => Err(PyRuntimeError::new_err(
             "array physical type is not handled",
         )),
@@ -183,8 +199,8 @@ fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{decode_buffer};
     use arrow2::array::PrimitiveArray;
-    use crate::decode_buffer;
 
     #[test]
     fn test_row_i32() {

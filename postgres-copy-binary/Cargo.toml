@@ -12,7 +12,8 @@ crate-type = ["cdylib"]
 postgres-copy-binary-rs = { version = "0.1.0", path = "../postgres-copy-binary-rs" }
 postgres-types = { version = "0.2.4"}
 arrow2 = "0.16.0"
-phf = { version = "0.11.1", features = ["macros"] }
+strum = { version = "0.24.1", features = ["strum_macros"] }
+strum_macros = "0.24.3"
 
 [dependencies.pyo3]
 version = "0.18.1"

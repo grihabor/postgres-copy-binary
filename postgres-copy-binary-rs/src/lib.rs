@@ -1,5 +1,10 @@
+use bytes::BytesMut;
 use core::result::Result;
 use futures_util::future::LocalBoxFuture;
+use futures_util::StreamExt;
+use futures_util::{FutureExt, Stream};
+use postgres_types::{FromSql, Type};
+use simple_error::SimpleError;
 use std::any::type_name;
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
@@ -9,11 +14,6 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
-use futures_util::StreamExt;
-use bytes::{BytesMut};
-use futures_util::{FutureExt, Stream};
-use postgres_types::{FromSql, Type};
-use simple_error::SimpleError;
 use tokio::io;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
@@ -215,7 +215,7 @@ pub struct BinaryCopyOutRow {
 
 impl BinaryCopyOutRow {
     /// Like `get`, but returns a `Result` rather than panicking.
-    pub fn try_get<'a, T>(&'a self, idx: usize) -> Result<T, Box<dyn Error+Send+Sync>>
+    pub fn try_get<'a, T>(&'a self, idx: usize) -> Result<T, Box<dyn Error + Send + Sync>>
     where
         T: FromSql<'a>,
     {
@@ -262,21 +262,21 @@ impl BinaryCopyOutRow {
 
 /// An iterator of rows deserialized from the PostgreSQL binary copy format.
 pub struct BinaryCopyOutIter<'f, 'r, R>
-    where
-        R: AsyncRead + Unpin,
+where
+    R: AsyncRead + Unpin,
 {
     stream: Pin<Box<BinaryCopyOutStream<'f, 'r, R>>>,
 }
 
 impl<'f, 't, 'r, R> BinaryCopyOutIter<'f, 'r, R>
-    where
-        R: AsyncRead + Unpin + 'r,
+where
+    R: AsyncRead + Unpin + 'r,
 {
     /// Creates a new iterator from a raw copy out reader and the types of the columns being returned.
     pub fn new(reader: R, types: &'t [Type]) -> BinaryCopyOutIter<'f, 'r, R>
-        where
-            't: 'f,
-            't: 'r,
+    where
+        't: 'f,
+        't: 'r,
     {
         BinaryCopyOutIter {
             stream: Box::pin(BinaryCopyOutStream::new(reader, types)),
@@ -285,8 +285,8 @@ impl<'f, 't, 'r, R> BinaryCopyOutIter<'f, 'r, R>
 }
 
 impl<'f, 'r, R> Iterator for BinaryCopyOutIter<'f, 'r, R>
-    where
-        R: AsyncRead + Unpin + 'r,
+where
+    R: AsyncRead + Unpin + 'r,
 {
     type Item = io::Result<BinaryCopyOutRow>;
 
