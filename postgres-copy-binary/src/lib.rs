@@ -199,16 +199,8 @@ fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{decode_buffer, Type};
+    use crate::{decode_buffer};
     use arrow2::array::PrimitiveArray;
-    use postgres_types::Type;
-
-    #[test]
-    fn test_type_string_roundtrip() {
-        for type_ in Type {
-            type_.into
-        }
-    }
 
     #[test]
     fn test_row_i32() {
