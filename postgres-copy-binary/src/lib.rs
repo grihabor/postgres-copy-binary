@@ -160,7 +160,7 @@ fn push_row_value(
     i: usize,
 ) -> PyResult<()> {
     match array.data_type().to_physical_type() {
-        PhysicalType::Primitive(PrimitiveType::Float64) => push_value!(array, row i, f64),
+        PhysicalType::Primitive(PrimitiveType::Float64) => push_value!(array, row, i, f64),
         PhysicalType::Primitive(PrimitiveType::Int32) => push_value!(array, row, i, i32),
         PhysicalType::Primitive(PrimitiveType::Float32) => push_value!(array, row, i, f32),
         _ => Err(PyRuntimeError::new_err(
