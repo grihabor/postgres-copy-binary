@@ -1,15 +1,15 @@
 [package]
-name = "postgres-copy-binary"
+name = "postgres-copy-binary-extension-module"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "postgres_copy_binary"
+name = "postgres_copy_binary_extension_module"
 crate-type = ["cdylib"]
 
 [dependencies]
-postgres-copy-binary-rs = { version = "0.1.0", path = "../postgres-copy-binary-rs" }
+postgres-copy-binary-lib = { version = "0.1.0", path = "../postgres-copy-binary-lib" }
 postgres-types = { version = "0.2.4"}
 arrow2 = "0.16.0"
 strum = { version = "0.24.1", features = ["strum_macros"] }

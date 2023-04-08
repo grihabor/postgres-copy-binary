@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "postgres-copy-binary",
-    "postgres-copy-binary-rs",
+    "postgres-copy-binary-extension-module",
+    "postgres-copy-binary-lib",
 ]
