@@ -23,6 +23,11 @@ jobs:
           pip install poetry
           cd postgres-copy-binary-python
           poetry build
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-wheel
+          path: postgres-copy-binary-python/dist
 
   linux-extension-module:
     runs-on: ubuntu-latest
