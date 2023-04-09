@@ -203,7 +203,7 @@ fn to_py_array(array: Box<dyn Array>, py: Python) -> PyResult<PyObject> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
+fn postgres_copy_binary_extension_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_decode_buffer, m)?)?;
     Ok(())
 }

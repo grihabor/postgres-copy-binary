@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+
+[tool.poetry]
+name = "postgres-copy-binary"
+version = "0.3.0"
+description = "Provides a decoder for postgres COPY FROM WITH BINARY format that produces pyarrow / pandas / numpy / polars arrays."
+authors = ["Gregory Borodin <grihabor@gmail.com>"]
+license = "MIT"
+classifiers = []
+dependencies = { postgres-copy-binary-extension-module = "0.3.0" }

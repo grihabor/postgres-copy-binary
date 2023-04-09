@@ -3,7 +3,7 @@ requires = ["maturin>=0.14,<0.15"]
 build-backend = "maturin"
 
 [project]
-name = "postgres-copy-binary"
+name = "postgres-copy-binary-extension-module"
 version = "0.3.0"
 requires-python = ">=3.7"
 dependencies = ["pyarrow~=11.0.0"]
