@@ -9,7 +9,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  linux:
+  python-module:
+    runs-one: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Build wheel
+        uses:
+
+  linux-extension-module:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -33,7 +45,7 @@ jobs:
           name: wheels
           path: dist
 
-  windows:
+  windows-extension-module:
     runs-on: windows-latest
     strategy:
       matrix:
@@ -57,7 +69,7 @@ jobs:
           name: wheels
           path: dist
 
-  macos:
+  macos-extension-module:
     runs-on: macos-latest
     strategy:
       matrix:
@@ -80,11 +92,28 @@ jobs:
           name: wheels
           path: dist
 
-  release:
-    name: Release
+  publish-python-module:
+    name: Publish extension module
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux, windows, macos]
+    needs: [python-package]
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: python-wheel
+      - name: Publish to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          pip install poetry
+          cd postgres-copy-binary-python
+          poetry publish --build
+
+  publish-extension-module:
+    name: Publish extension module
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: [linux-extension-module, windows-extension-module, macos-extension-module]
     steps:
       - uses: actions/download-artifact@v3
         with:
