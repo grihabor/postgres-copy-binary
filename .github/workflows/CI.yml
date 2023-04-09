@@ -25,7 +25,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter -m postgres-copy-binary/Cargo.toml
+          args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
           manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -50,7 +50,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter -m postgres-copy-binary/Cargo.toml
+          args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
@@ -73,7 +73,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter -m postgres-copy-binary/Cargo.toml
+          args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
