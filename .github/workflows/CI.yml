@@ -104,7 +104,7 @@ jobs:
     name: Publish extension module
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [python-package]
+    needs: [python-package, publish-extension-module]
     steps:
       - uses: actions/download-artifact@v3
         with:
