@@ -19,7 +19,10 @@ jobs:
         with:
           python-version: '3.10'
       - name: Build wheel
-        uses:
+        run: |
+          pip install poetry
+          cd postgres-copy-binary-python
+          poetry build
 
   linux-extension-module:
     runs-on: ubuntu-latest
@@ -107,7 +110,7 @@ jobs:
         run: |
           pip install poetry
           cd postgres-copy-binary-python
-          poetry publish --build
+          poetry publish
 
   publish-extension-module:
     name: Publish extension module
