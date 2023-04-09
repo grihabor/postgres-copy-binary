@@ -3,12 +3,11 @@ use arrow2::datatypes::Field;
 use arrow2::datatypes::PhysicalType;
 use arrow2::ffi;
 use arrow2::types::PrimitiveType;
-use postgres_copy_binary_rs::{BinaryCopyOutIter, BinaryCopyOutRow};
+use postgres_copy_binary_lib::{BinaryCopyOutIter, BinaryCopyOutRow};
 use postgres_types::Type as PGType;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::ffi::Py_uintptr_t;
 use pyo3::prelude::*;
-use std::fmt::format;
 use std::str::FromStr;
 use strum::VariantNames;
 use strum_macros::{EnumString, EnumVariantNames};
@@ -204,7 +203,7 @@ fn to_py_array(array: Box<dyn Array>, py: Python) -> PyResult<PyObject> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn postgres_copy_binary(_py: Python, m: &PyModule) -> PyResult<()> {
+fn postgres_copy_binary_extension_module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_decode_buffer, m)?)?;
     Ok(())
 }

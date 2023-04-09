@@ -1,5 +1,5 @@
 [package]
-name = "postgres-copy-binary-rs"
+name = "postgres-copy-binary-lib"
 version = "0.1.0"
 edition = "2021"
 
