@@ -18,15 +18,15 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Build wheel
+      - name: Build python package wheel
         run: |
           pip install poetry
           cd postgres-copy-binary-python
           poetry build
-      - name: Upload wheels
+      - name: Upload python package wheels
         uses: actions/upload-artifact@v3
         with:
-          name: python-wheel
+          name: wheels
           path: postgres-copy-binary-python/dist
 
   linux-extension-module:
@@ -41,13 +41,13 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Build wheels
+      - name: Build extension module wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
           manylinux: auto
-      - name: Upload wheels
+      - name: Upload extension module wheels
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -66,12 +66,12 @@ jobs:
         with:
           python-version: '3.10'
           architecture: ${{ matrix.target }}
-      - name: Build wheels
+      - name: Build extension module wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
-      - name: Upload wheels
+      - name: Upload extension module wheels
         uses: actions/upload-artifact@v3
         with:
           name: wheels
@@ -89,39 +89,26 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Build wheels
+      - name: Build extension module wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter -m postgres-copy-binary-extension-module/Cargo.toml
-      - name: Upload wheels
+      - name: Upload extension module wheels
         uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
 
-  publish-python-package:
-    name: Publish python package
+  publish-all:
+    name: Publish extension module and python package
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [python-package, publish-extension-module]
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: python-wheel
-      - name: Publish to PyPI
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          pip install poetry
-          cd postgres-copy-binary-python
-          poetry publish
-
-  publish-extension-module:
-    name: Publish extension module
-    runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux-extension-module, windows-extension-module, macos-extension-module]
+    needs:
+      - linux-extension-module
+      - windows-extension-module
+      - macos-extension-module
+      - python-package
     steps:
       - uses: actions/download-artifact@v3
         with:
