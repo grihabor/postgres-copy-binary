@@ -100,7 +100,6 @@ where
     let has_oids = if header.borrow().is_none() {
         let mut magic: &mut [u8] = &mut [0; MAGIC.len()];
         try_!(reader.read_exact(&mut magic).await);
-        println!("magic: {:?}", magic);
         if magic != MAGIC {
             return Some(Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -109,17 +108,13 @@ where
         }
 
         let flags = try_!(reader.read_u32().await);
-        println!("flags: {:?}", flags);
         let has_oids = (flags & (1 << 16)) != 0;
-
         let header_extension_size = try_!(reader.read_u32().await);
-        println!("header extension size: {:?}", header_extension_size);
 
         // skip header extension
         let mut header_extension: Box<[u8]> =
             vec![0; header_extension_size as usize].into_boxed_slice();
         try_!(reader.read_exact(&mut header_extension).await);
-        println!("header extension: {:?}", header_extension);
 
         header.replace(Some(Header { has_oids }));
         has_oids
@@ -132,7 +127,6 @@ where
         // end of binary stream
         return None;
     }
-    println!("field count: {:?}", field_count);
 
     if has_oids {
         field_count += 1;
@@ -148,7 +142,6 @@ where
     let mut field_indices = vec![];
     for _ in 0..field_count {
         let field_size = try_!(reader.read_u32().await);
-        println!("field size: {:?}", field_size);
 
         let start = field_buf.len();
         if field_size == u32::MAX {
@@ -162,7 +155,6 @@ where
                 .read_exact(&mut field_buf[start..start + field_size])
                 .await
         );
-        println!("buf: {:?}", field_buf);
         field_indices.push(FieldIndex::Value(start));
     }
 
