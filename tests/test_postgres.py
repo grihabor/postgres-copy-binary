@@ -20,21 +20,25 @@ def postgres_cursor(connection):
 
 
 @pytest.fixture(autouse=True)
-def create_table(postgres_cursor, column_type):
+def create_table(postgres_cursor, column_type, values):
     cursor = postgres_cursor
     cursor.execute(f"create table test(col1 {column_type})")
     try:
-        cursor.execute("insert into test(col1) values (2), (3), (5), (8), (13)")
+        cursor.executemany("insert into test(col1) values (%s)", values)
         yield
     finally:
         cursor.execute("drop table test")
 
 
 @pytest.mark.parametrize(
-    "column_type, arrow_type",
-    [("integer", pa.int32()), ("bigint", pa.int64()), ("smallint", pa.int16())],
+    "column_type, arrow_type, values",
+    [
+        ("integer", pa.int32(), [[2], [3], [5], [8], [13]]),
+        ("bigint", pa.int64(), [[2], [3], [5], [8], [13]]),
+        ("smallint", pa.int16(), [[2], [3], [5], [8], [13]]),
+    ],
 )
-def test_int(postgres_cursor, arrow_type, column_type):
+def test_int(postgres_cursor, arrow_type, column_type, values):
     cursor = postgres_cursor
 
     f = BytesIO()
@@ -45,4 +49,6 @@ def test_int(postgres_cursor, arrow_type, column_type):
             pa.field("col1", arrow_type),
         ]
     )
-    assert data == pa.Table.from_pydict({"col1": [2, 3, 5, 8, 13]}, schema=schema)
+    assert data == pa.Table.from_pydict(
+        {"col1": [row[0] for row in values]}, schema=schema
+    )
