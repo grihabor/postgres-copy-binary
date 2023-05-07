@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "postgres-copy-binary"
-version = "0.5.0"
+version = "0.6.0"
 description = "Provides a decoder for postgres COPY FROM WITH BINARY format that produces pyarrow / pandas / numpy / polars arrays."
 repository = "https://github.com/grihabor/postgres-copy-binary"
 authors = ["Gregory Borodin <grihabor@gmail.com>"]
@@ -17,4 +17,4 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.7"
-postgres-copy-binary-extension-module = { version = "0.5.0", python = ">=3.7" }
+postgres-copy-binary-extension-module = { version = "0.6.0", python = ">=3.7" }
