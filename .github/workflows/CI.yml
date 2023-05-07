@@ -18,8 +18,7 @@ jobs:
           python-version: '3.10'
       - name: Install packages and run tests
         run: |
-          make tests
-          pytest tests/
+          make install test
     
   python-package:
     runs-on: ubuntu-latest
