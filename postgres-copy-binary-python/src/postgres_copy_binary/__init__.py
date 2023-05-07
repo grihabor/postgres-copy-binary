@@ -9,13 +9,13 @@ def read_table(cursor, table: str) -> list[pyarrow.Array]:
     # get column types, we need them to decode postgres binary format
     cursor.execute(
         """
-        select data_type from information_schema.columns
+        select column_name, data_type from information_schema.columns
         where table_name = %s
         order by ordinal_position
     """,
         (table,),
     )
-    types = [row[0] for row in cursor.fetchall()]
+    names, types = zip(*list(cursor.fetchall()))
 
     # copy table into buffer
     buf = io.BytesIO()
@@ -23,7 +23,8 @@ def read_table(cursor, table: str) -> list[pyarrow.Array]:
     buffer = buf.getvalue()
 
     # decode buffer
-    return decode_buffer(buffer, types)
+    columns = decode_buffer(buffer, types)
+    return pyarrow.Table.from_arrays(columns, names=names)
 
 
 __all__ = (

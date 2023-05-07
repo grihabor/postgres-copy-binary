@@ -15,8 +15,9 @@ use strum_macros::{EnumString, EnumVariantNames};
 /// Type is a supported subset of postgres_types::Type
 #[derive(Debug, EnumString, EnumVariantNames, Copy, Clone)]
 enum Type {
-    // "bigint" => Type::INT8,
-    // "bigserial" => Type::INT8,
+    #[strum(serialize = "bigint", serialize = "bigserial")]
+    INT8,
+
     // "bit" => Type::BIT,
     // "bit varying" => Type::VARBIT,
     // "boolean" => Type::BOOL,
@@ -32,7 +33,7 @@ enum Type {
     FLOAT8,
 
     // "inet" => Type::INET,
-    #[strum(serialize = "integer")]
+    #[strum(serialize = "integer", serialize = "serial")]
     INT4,
 
     // "interval" => Type::INTERVAL,
@@ -51,9 +52,8 @@ enum Type {
     // "polygon" => Type::POLYGON,
     #[strum(serialize = "real")]
     FLOAT4,
-    // "smallint" => Type::INT2,
-    // "smallserial" => Type::INT2,
-    // "serial" => Type::INT4,
+    #[strum(serialize = "smallint", serialize = "smallserial")]
+    INT2,
     // "text" => Type::TEXT,
     // "time " => Type::TIME,
     // "timestamp " => Type::TIMESTAMP,
@@ -67,20 +67,24 @@ enum Type {
 impl Into<PGType> for &Type {
     fn into(self) -> PGType {
         match *self {
+            Type::INT8 => PGType::INT8,
             Type::VARCHAR => PGType::VARCHAR,
             Type::FLOAT8 => PGType::FLOAT8,
             Type::INT4 => PGType::INT4,
             Type::FLOAT4 => PGType::FLOAT4,
+            Type::INT2 => PGType::INT2,
         }
     }
 }
 
 fn new_array(ty: Type) -> Result<Box<dyn MutableArray>, String> {
     match ty {
+        Type::INT8 => Ok(Box::new(MutablePrimitiveArray::<i64>::new())),
         Type::VARCHAR => Ok(Box::new(MutableUtf8Array::<i32>::new())),
+        Type::FLOAT8 => Ok(Box::new(MutablePrimitiveArray::<f64>::new())),
         Type::INT4 => Ok(Box::new(MutablePrimitiveArray::<i32>::new())),
         Type::FLOAT4 => Ok(Box::new(MutablePrimitiveArray::<f32>::new())),
-        Type::FLOAT8 => Ok(Box::new(MutablePrimitiveArray::<f64>::new())),
+        Type::INT2 => Ok(Box::new(MutablePrimitiveArray::<i16>::new())),
     }
 }
 
@@ -167,8 +171,14 @@ fn push_row_value(
         PhysicalType::Primitive(PrimitiveType::Float64) => {
             push_value!(array, row, i, f64, MutablePrimitiveArray<f64>)
         }
+        PhysicalType::Primitive(PrimitiveType::Int16) => {
+            push_value!(array, row, i, i16, MutablePrimitiveArray<i16>)
+        }
         PhysicalType::Primitive(PrimitiveType::Int32) => {
             push_value!(array, row, i, i32, MutablePrimitiveArray<i32>)
+        }
+        PhysicalType::Primitive(PrimitiveType::Int64) => {
+            push_value!(array, row, i, i64, MutablePrimitiveArray<i64>)
         }
         PhysicalType::Primitive(PrimitiveType::Float32) => {
             push_value!(array, row, i, f32, MutablePrimitiveArray<f32>)
