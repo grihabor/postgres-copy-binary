@@ -36,6 +36,7 @@ def create_table(postgres_cursor, column_type, values):
         ("integer", pa.int32(), [[2], [3], [5], [8], [13]]),
         ("bigint", pa.int64(), [[2], [3], [5], [8], [13]]),
         ("smallint", pa.int16(), [[2], [3], [5], [8], [13]]),
+        ("varchar", pa.string(), [["a"], ["b"], ["c"]]),
     ],
 )
 def test_int(postgres_cursor, arrow_type, column_type, values):
