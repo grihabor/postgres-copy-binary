@@ -116,7 +116,7 @@ jobs:
           path: dist
 
   publish-all:
-    name: Publish extension module and python package
+    name: publish extension modules and python package
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
     needs:
